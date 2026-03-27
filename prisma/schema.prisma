@@ -1,0 +1,102 @@
+/// Prisma schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+enum YesNo {
+  YES
+  NO
+}
+
+enum StudentMonitor {
+  GIVEN
+  NOT_GIVEN
+}
+
+model Student {
+  id                       Int       @id @default(autoincrement())
+  fullNameWithSurnameEn    String
+  fullNameWithSurnameSi    String?
+  nameWithInitialsEn       String?
+  nameWithInitialsSi       String?
+  dob                      DateTime?
+  addressEn                String?
+  addressSi                String?
+  phone1                   String?
+  phone2                   String?
+  schoolEn                 String?
+  schoolSi                 String?
+  earlierSchool            YesNo    @default(NO)
+  earlierSchoolEn          String?
+  earlierSchoolSi          String?
+  reasonForLeaveEn         String?
+  reasonForLeaveSi         String?
+
+  fatherFullNameEn         String?
+  fatherFullNameSi         String?
+  fatherJobEn              String?
+  fatherJobSi              String?
+  fatherJobAddressEn       String?
+  fatherJobAddressSi       String?
+
+  motherFullNameEn         String?
+  motherFullNameSi         String?
+  motherJobEn              String?
+  motherJobSi              String?
+  motherJobAddressEn       String?
+  motherJobAddressSi       String?
+
+  guardianFullNameEn       String?
+  guardianFullNameSi       String?
+  guardianJobEn            String?
+  guardianJobSi            String?
+  guardianJobAddressEn     String?
+  guardianJobAddressSi     String?
+
+  emergencyPersonNameEn    String?
+  emergencyPersonNameSi    String?
+  emergencyPersonAddressEn String?
+  emergencyPersonAddressSi String?
+  emergencyNumber          String?
+
+  disabilities             YesNo    @default(NO)
+  disabilityReasonEn       String?
+  disabilityReasonSi       String?
+  medicated               YesNo    @default(NO)
+  medicine                 String?
+
+  registrationPayment      Float?
+  registrationDate         DateTime?
+
+  indexNo                  String?
+  libraryNo                String?
+  houseEn                  String?
+  houseSi                  String?
+  gradeEn                  String?
+  gradeSi                  String?
+
+  studentActiveMonitor     StudentMonitor @default(NOT_GIVEN)
+
+
+  agreeToTerms             Boolean  @default(false)
+
+  siblings                 Sibling[]
+
+  createdAt                DateTime @default(now())
+}
+
+model Sibling {
+  id            Int     @id @default(autoincrement())
+  student       Student @relation(fields: [studentId], references: [id])
+  studentId     Int
+  nameEn        String
+  nameSi        String?
+  gradeEn       String?
+  gradeSi       String?
+
+  @@index([studentId])
+}
