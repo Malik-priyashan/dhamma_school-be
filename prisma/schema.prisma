@@ -1,5 +1,3 @@
-/// Prisma schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -7,9 +5,227 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
-enum YesNo {
-  YES
-  NO
+
+model Student {
+  id String @id @default(uuid())
+  fullNameWithSurname    String
+  nameWithInitials       String?
+  dob                    DateTime?
+  address                String?
+  phone1                 String?
+  phone2                 String?
+  school                 String?
+  earlierSchool          Boolean          @default(false)
+  earlierSchoolReason    String?
+  reasonForLeave         String?
+  fatherFullName         String?
+  fatherJob              String?
+  fatherJobAddress       String?
+  motherFullName         String?
+  motherJob              String?
+  motherJobAddress       String?
+  guardianFullName       String?
+  guardianJob            String?
+  guardianJobAddress     String?
+  emergencyPersonName    String?
+  emergencyPersonAddress String?
+  emergencyNumber        String?
+  disabilities           Boolean          @default(false)
+  disabilityReason       String?
+  medicated              Boolean          @default(false)
+  medicine               String?
+  registrationPayment    Float?
+  registrationDate       DateTime?
+  indexNo                String?
+  libraryNo              String?
+  house                  String?
+  grade                  String?
+  studentActiveMonitor   StudentMonitor   @default(NOT_GIVEN)
+  agreeToTerms           Boolean          @default(false)
+  createdAt              DateTime         @default(now())
+  studentImage           String?
+  siblings StudentSibling[]
+  payments RegistrationPayment[]
+}
+
+model AnnouncingForm {
+  id String @id @default(uuid())
+  fullNameWithSurname String
+  birthday            DateTime?
+  address             String?
+  phoneLand           String?
+  phoneMobile         String?
+  school              String?
+  guardianName        String?
+  guardianAddress     String?
+  studentAgreement    Boolean         @default(false)
+  marks               Float?
+  status              SelectionStatus @default(PENDING)
+  createdAt           DateTime        @default(now())
+  special Special?
+}
+
+model PrefectBoard {
+  id String @id @default(uuid())
+  entranceDay                     DateTime?
+  entranceNo                      String?
+  firstTermPlace                  String?
+  firstTermMarks                  Float?
+  secondTermPlace                 String?
+  secondTermMarks                 Float?
+  thirdTermPlace                  String?
+  thirdTermMarks                  Float?
+  absentDaysCount                 Int?
+  isPrefect                       Boolean         @default(false)
+  isPrefectYears                  Int[]
+  isClassLeader                   Boolean         @default(false)
+  isClassLeaderYears              Int[]
+  participateForCompetitions      Boolean         @default(false)
+  participateForCompetitionsYears Int[]
+  isInAnnouncingClub              Boolean         @default(false)
+  isInAnnouncingClubYears         Int[]
+  isOnStage                       Boolean         @default(false)
+  isOnStageYears                  Int[]
+  participateToKatina             Boolean         @default(false)
+  participateToKatinaYears        Int[]
+  poyaDayCount                    Int?
+  studentAgreement                Boolean         @default(false)
+  parentsAgreement                Boolean         @default(false)
+  libraryStatus                   LibraryStatus?
+  teachersAgreement               Boolean         @default(false)
+  teachersAgreementFile           String?
+  teachersConfirmFile             String?
+  regNo                           String?
+  marks                           Float?
+  status                          SelectionStatus @default(PENDING)
+  date                            DateTime?
+  createdAt                       DateTime        @default(now())
+  address                         String?
+  fullName                        String
+  grade                           String?
+  libraryStatusConfirmationFile   String?
+  parentsName                     String?
+  specialNote                     String?
+}
+
+model RefreshToken {
+  id String @id @default(uuid())
+  userId       String
+  tokenHash    String    @unique
+  expiresAt    DateTime
+  revokedAt    DateTime?
+  createdByIp  String?
+  revokedByIp  String?
+  replacedById String?
+  userAgent    String?
+  createdAt    DateTime  @default(now())
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+  @@index([userId])
+}
+
+model Special {
+  id String @id @default(uuid())
+  dancing              Json?
+  kathika              Json?
+  padyagayana          Json?
+  debate               Json?
+  acting               Json?
+  singing              Json?
+  prefectOrClassLeader Json?
+  committee            Json?
+  other                Json?
+  announcingFormId     String?         @unique
+  createdAt            DateTime        @default(now())
+  announcing           Json?
+  announcingForm AnnouncingForm? @relation(fields: [announcingFormId], references: [id])
+}
+
+model StudentRequest {
+  id String @id @default(uuid())
+  fullNameWithSurname    String
+  nameWithInitials       String?
+  dob                    DateTime?
+  address                String?
+  phone1                 String?
+  phone2                 String?
+  school                 String?
+  earlierSchool          Boolean                 @default(false)
+  earlierSchoolReason    String?
+  reasonForLeave         String?
+  fatherFullName         String?
+  fatherJob              String?
+  fatherJobAddress       String?
+  motherFullName         String?
+  motherJob              String?
+  motherJobAddress       String?
+  guardianFullName       String?
+  guardianJob            String?
+  guardianJobAddress     String?
+  emergencyPersonName    String?
+  emergencyPersonAddress String?
+  emergencyNumber        String?
+  disabilities           Boolean                 @default(false)
+  disabilityReason       String?
+  medicated              Boolean                 @default(false)
+  medicine               String?
+  registrationPayment    Float?
+  registrationDate       DateTime?
+  indexNo                String?
+  libraryNo              String?
+  house                  String?
+  grade                  String?
+  studentActiveMonitor   StudentMonitor          @default(NOT_GIVEN)
+  agreeToTerms           Boolean                 @default(false)
+  createdAt              DateTime                @default(now())
+  status                 StudentRequestStatus    @default(PENDING)
+  studentImage           String?
+  siblings StudentRequestSibling[]
+  payments RegistrationPayment[]
+}
+
+model RegistrationPayment {
+  id String @id @default(uuid())
+  amount Float
+  studentRequestId String?
+  studentRequest StudentRequest? @relation(fields: [studentRequestId], references: [id])
+  studentId String?
+  student Student? @relation(fields: [studentId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+model StudentRequestSibling {
+  id String @id @default(uuid())
+  studentRequestId String
+  name             String
+  grade            String?
+  studentRequest StudentRequest @relation(fields: [studentRequestId], references: [id])
+
+  @@index([studentRequestId])
+}
+
+model StudentSibling {
+  id String @id @default(uuid())
+  studentId String
+  name      String
+  grade     String?
+  student Student @relation(fields: [studentId], references: [id])
+
+  @@index([studentId])
+}
+
+model User {
+  id String @id @default(uuid())
+  email        String         @unique
+  passwordHash String
+  fullName     String?
+  role         UserRole       @default(STUDENT)
+  isActive     Boolean        @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime       @default(now())
+  updatedAt DateTime @updatedAt
+  refreshTokens RefreshToken[]
 }
 
 enum StudentMonitor {
@@ -17,86 +233,27 @@ enum StudentMonitor {
   NOT_GIVEN
 }
 
-model Student {
-  id                       Int       @id @default(autoincrement())
-  fullNameWithSurnameEn    String
-  fullNameWithSurnameSi    String?
-  nameWithInitialsEn       String?
-  nameWithInitialsSi       String?
-  dob                      DateTime?
-  addressEn                String?
-  addressSi                String?
-  phone1                   String?
-  phone2                   String?
-  schoolEn                 String?
-  schoolSi                 String?
-  earlierSchool            YesNo    @default(NO)
-  earlierSchoolEn          String?
-  earlierSchoolSi          String?
-  reasonForLeaveEn         String?
-  reasonForLeaveSi         String?
-
-  fatherFullNameEn         String?
-  fatherFullNameSi         String?
-  fatherJobEn              String?
-  fatherJobSi              String?
-  fatherJobAddressEn       String?
-  fatherJobAddressSi       String?
-
-  motherFullNameEn         String?
-  motherFullNameSi         String?
-  motherJobEn              String?
-  motherJobSi              String?
-  motherJobAddressEn       String?
-  motherJobAddressSi       String?
-
-  guardianFullNameEn       String?
-  guardianFullNameSi       String?
-  guardianJobEn            String?
-  guardianJobSi            String?
-  guardianJobAddressEn     String?
-  guardianJobAddressSi     String?
-
-  emergencyPersonNameEn    String?
-  emergencyPersonNameSi    String?
-  emergencyPersonAddressEn String?
-  emergencyPersonAddressSi String?
-  emergencyNumber          String?
-
-  disabilities             YesNo    @default(NO)
-  disabilityReasonEn       String?
-  disabilityReasonSi       String?
-  medicated               YesNo    @default(NO)
-  medicine                 String?
-
-  registrationPayment      Float?
-  registrationDate         DateTime?
-
-  indexNo                  String?
-  libraryNo                String?
-  houseEn                  String?
-  houseSi                  String?
-  gradeEn                  String?
-  gradeSi                  String?
-
-  studentActiveMonitor     StudentMonitor @default(NOT_GIVEN)
-
-
-  agreeToTerms             Boolean  @default(false)
-
-  siblings                 Sibling[]
-
-  createdAt                DateTime @default(now())
+enum LibraryStatus {
+  VERY_GOOD
+  GOOD
+  NORMAL
+  WEAK
 }
 
-model Sibling {
-  id            Int     @id @default(autoincrement())
-  student       Student @relation(fields: [studentId], references: [id])
-  studentId     Int
-  nameEn        String
-  nameSi        String?
-  gradeEn       String?
-  gradeSi       String?
+enum SelectionStatus {
+  SELECTED
+  NOT_SELECTED
+  PENDING
+}
 
-  @@index([studentId])
+enum UserRole {
+  ADMIN
+  TEACHER
+  STUDENT
+}
+
+enum StudentRequestStatus {
+  ACCEPTED
+  REJECTED
+  PENDING
 }

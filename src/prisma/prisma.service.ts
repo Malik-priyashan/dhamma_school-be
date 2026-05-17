@@ -29,16 +29,36 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     super({ adapter, log: ['query', 'info', 'warn', 'error'] } as any);
 
+    interface PrismaQueryEvent {
+      query: string;
+      params: string;
+      duration: number;
+    }
+
+    const prismaWithEvents = this as unknown as {
+      $on(event: 'query', callback: (event: PrismaQueryEvent) => void): void;
+      $on(
+        event: 'info' | 'warn' | 'error',
+        callback: (event: unknown) => void,
+      ): void;
+    };
+
     // Log queries using Nest's logger for consistent output in VS Code terminal
-    (this as any).$on('query', (e: any) => {
+    prismaWithEvents.$on('query', (e) => {
       this.logger.debug(
         `Prisma query: ${e.query} -- params: ${e.params} -- duration: ${e.duration}ms`,
       );
     });
 
-    (this as any).$on('info', (e: any) => this.logger.log(`Prisma info: ${JSON.stringify(e)}`));
-    (this as any).$on('warn', (e: any) => this.logger.warn(`Prisma warn: ${JSON.stringify(e)}`));
-    (this as any).$on('error', (e: any) => this.logger.error(`Prisma error: ${JSON.stringify(e)}`));
+    prismaWithEvents.$on('info', (e) =>
+      this.logger.log(`Prisma info: ${JSON.stringify(e)}`),
+    );
+    prismaWithEvents.$on('warn', (e) =>
+      this.logger.warn(`Prisma warn: ${JSON.stringify(e)}`),
+    );
+    prismaWithEvents.$on('error', (e) =>
+      this.logger.error(`Prisma error: ${JSON.stringify(e)}`),
+    );
 
     this.logger.log('PrismaService initialized');
   }

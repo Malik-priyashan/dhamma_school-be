@@ -3,13 +3,23 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
+  Param,
+  Query,
   UploadedFile,
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { PrefectService } from './prefect.service';
 import { CreatePrefectDto } from './dto/create-prefect.dto';
+import { UpdatePrefectDto } from './dto/update-prefect.dto';
+import { UseGuards } from '@nestjs/common';
+import { AuthGuard } from '../auth/guards/auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
 
+@UseGuards(AuthGuard, RolesGuard)
+@Roles('STUDENT', 'ADMIN')
 @Controller('prefect')
 export class PrefectController {
   constructor(private readonly prefectService: PrefectService) {}
@@ -27,15 +37,35 @@ export class PrefectController {
         typeof file.filename === 'string'
           ? file.filename
           : typeof file.originalname === 'string'
-          ? file.originalname
-          : undefined;
+            ? file.originalname
+            : undefined;
       if (filename) data.teachersAgreementFile = filename;
     }
     return this.prefectService.create(data);
   }
 
   @Get()
-  async getAll() {
-    return this.prefectService.findAll();
+  async getAll(
+    @Query('status') status?: string,
+    @Query('grade') grade?: string,
+    @Query('indexNo') indexNo?: string,
+    @Query('name') name?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.prefectService.findAll({
+      status,
+      grade,
+      indexNo,
+      name,
+      page,
+      limit,
+    });
+  }
+
+  @Patch(':id')
+  async update(@Param('id') id: string, @Body() dto: UpdatePrefectDto) {
+    console.log('PATCH API DTO RECEIVED:', dto);
+    return this.prefectService.update(id, dto);
   }
 }
