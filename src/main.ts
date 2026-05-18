@@ -22,9 +22,9 @@ async function bootstrap() {
     }),
   );
 
-  // Enable CORS for local frontend during development
+  // Enable CORS for local and production frontend
   app.enableCors({
-    origin: 'https://dhamma-school-sand.vercel.app',
+    origin: process.env.FRONTEND_URL || 'http://localhost:3001',
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
   });
