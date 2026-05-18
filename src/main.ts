@@ -24,7 +24,7 @@ async function bootstrap() {
 
   // Enable CORS for local frontend during development
   app.enableCors({
-    origin: 'http://localhost:3001',
+    origin: 'https://dhamma-school-sand.vercel.app',
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
   });
