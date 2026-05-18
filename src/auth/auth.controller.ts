@@ -20,6 +20,7 @@ const COOKIE_OPTIONS = {
   httpOnly: true,
   secure: isProduction,
   sameSite: isProduction ? ('none' as const) : ('lax' as const),
+  path: '/',
 };
 
 @Controller('auth')
@@ -99,7 +100,11 @@ export class AuthController {
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
-    return { message: 'Token refreshed successfully' };
+    return { 
+      message: 'Token refreshed successfully',
+      accessToken,
+      refreshToken,
+    };
   }
 
   @HttpCode(HttpStatus.OK)
