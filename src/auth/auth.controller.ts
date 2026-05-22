@@ -100,7 +100,7 @@ export class AuthController {
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
-    return { 
+    return {
       message: 'Token refreshed successfully',
       accessToken,
       refreshToken,

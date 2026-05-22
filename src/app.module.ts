@@ -10,6 +10,7 @@ import { AnnouncingModule } from './announcing/announcing.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { RegistrationPaymentModule } from './registration-payment/registration-payment.module';
+import { MarksModule } from './marks/marks.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { RegistrationPaymentModule } from './registration-payment/registration-p
     AuthModule,
     UsersModule,
     RegistrationPaymentModule,
+    MarksModule,
   ],
   controllers: [AppController],
   providers: [AppService],

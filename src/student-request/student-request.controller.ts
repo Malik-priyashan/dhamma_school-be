@@ -7,10 +7,12 @@ import {
   Patch,
   Post,
   Query,
+  Req,
   UploadedFile,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
+import { Request } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { StudentRequestService } from './student-request.service';
 import { CreateStudentRequestDto } from './dto/create-student-request.dto';
@@ -27,11 +29,16 @@ export class StudentRequestController {
   @Post('submit')
   @UseInterceptors(FileInterceptor('studentImage'))
   async submit(
+    @Req() req: Request & { user?: { sub: string; role: string } },
     @UploadedFile() file: { filename?: string; originalname?: string },
     @Body() dto: CreateStudentRequestDto,
   ) {
     if (file) {
       dto.studentImage = file.filename || file.originalname;
+    }
+    // If the authenticated user is a STUDENT, automatically associate their userId
+    if (req.user && req.user.role === 'STUDENT') {
+      dto.userId = req.user.sub;
     }
     return this.studentService.createRequest(dto);
   }

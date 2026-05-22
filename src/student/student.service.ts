@@ -7,6 +7,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
 import { CreateStudentDto } from './dto/create-student.dto';
 import { UpdateStudentDto } from './dto/update-student.dto';
+import { normalizeFormTextFields } from '../common/text-normalizer';
 
 @Injectable()
 export class StudentService {
@@ -30,38 +31,77 @@ export class StudentService {
 
     return this.prisma.student.create({
       data: {
-        fullNameWithSurname: data.fullNameWithSurname,
-        nameWithInitials: data.nameWithInitials,
+        fullNameWithSurname: normalizeFormTextFields(
+          data.fullNameWithSurname,
+          'fullNameWithSurname',
+        ),
+        nameWithInitials: normalizeFormTextFields(
+          data.nameWithInitials,
+          'nameWithInitials',
+        ),
         dob,
-        address: data.address,
+        address: normalizeFormTextFields(data.address, 'address'),
         phone1: data.phone1,
         phone2: data.phone2,
-        school: data.school,
+        school: normalizeFormTextFields(data.school, 'school'),
 
         earlierSchool: !!data.earlierSchool,
-        earlierSchoolReason: data.earlierSchoolReason,
-        reasonForLeave: data.reasonForLeave,
+        earlierSchoolReason: normalizeFormTextFields(
+          data.earlierSchoolReason,
+          'earlierSchoolReason',
+        ),
+        reasonForLeave: normalizeFormTextFields(
+          data.reasonForLeave,
+          'reasonForLeave',
+        ),
 
-        fatherFullName: data.fatherFullName,
-        fatherJob: data.fatherJob,
-        fatherJobAddress: data.fatherJobAddress,
+        fatherFullName: normalizeFormTextFields(
+          data.fatherFullName,
+          'fatherFullName',
+        ),
+        fatherJob: normalizeFormTextFields(data.fatherJob, 'fatherJob'),
+        fatherJobAddress: normalizeFormTextFields(
+          data.fatherJobAddress,
+          'fatherJobAddress',
+        ),
 
-        motherFullName: data.motherFullName,
-        motherJob: data.motherJob,
-        motherJobAddress: data.motherJobAddress,
+        motherFullName: normalizeFormTextFields(
+          data.motherFullName,
+          'motherFullName',
+        ),
+        motherJob: normalizeFormTextFields(data.motherJob, 'motherJob'),
+        motherJobAddress: normalizeFormTextFields(
+          data.motherJobAddress,
+          'motherJobAddress',
+        ),
 
-        guardianFullName: data.guardianFullName,
-        guardianJob: data.guardianJob,
-        guardianJobAddress: data.guardianJobAddress,
+        guardianFullName: normalizeFormTextFields(
+          data.guardianFullName,
+          'guardianFullName',
+        ),
+        guardianJob: normalizeFormTextFields(data.guardianJob, 'guardianJob'),
+        guardianJobAddress: normalizeFormTextFields(
+          data.guardianJobAddress,
+          'guardianJobAddress',
+        ),
 
-        medicine: data.medicine,
+        medicine: normalizeFormTextFields(data.medicine, 'medicine'),
 
-        emergencyPersonName: data.emergencyPersonName,
-        emergencyPersonAddress: data.emergencyPersonAddress,
+        emergencyPersonName: normalizeFormTextFields(
+          data.emergencyPersonName,
+          'emergencyPersonName',
+        ),
+        emergencyPersonAddress: normalizeFormTextFields(
+          data.emergencyPersonAddress,
+          'emergencyPersonAddress',
+        ),
         emergencyNumber: data.emergencyNumber,
 
         disabilities: !!data.disabilities,
-        disabilityReason: data.disabilityReason,
+        disabilityReason: normalizeFormTextFields(
+          data.disabilityReason,
+          'disabilityReason',
+        ),
         medicated: !!data.medicated,
 
         registrationPayment: data.registrationPayment,
@@ -69,14 +109,17 @@ export class StudentService {
 
         indexNo: data.indexNo,
         libraryNo: data.libraryNo,
-        house: data.house,
+        house: normalizeFormTextFields(data.house, 'house'),
         grade: data.grade,
         studentActiveMonitor: data.studentActiveMonitor || 'NOT_GIVEN',
 
         agreeToTerms: !!data.agreeToTerms,
         studentImage: data.studentImage,
+        userId: data.userId,
 
-        siblings: siblingsData.length ? { create: siblingsData } : undefined,
+        siblings: siblingsData.length
+          ? { create: normalizeFormTextFields(siblingsData) }
+          : undefined,
       },
       include: { siblings: true },
     });
@@ -161,7 +204,7 @@ export class StudentService {
       grade: s?.grade,
     }));
 
-    const updateData: Prisma.StudentUpdateInput = {
+    const updateData = normalizeFormTextFields({
       fullNameWithSurname: data.fullNameWithSurname,
       nameWithInitials: data.nameWithInitials,
       address: data.address,
@@ -191,7 +234,7 @@ export class StudentService {
       grade: data.grade,
       studentActiveMonitor: data.studentActiveMonitor,
       studentImage: data.studentImage,
-    };
+    }) as Prisma.StudentUpdateInput & Record<string, any>;
 
     if (data.dob !== undefined) {
       updateData.dob = data.dob ? new Date(data.dob) : null;
@@ -219,10 +262,16 @@ export class StudentService {
       updateData.agreeToTerms = !!data.agreeToTerms;
     }
 
+    if (data.userId !== undefined) {
+      updateData.user = data.userId
+        ? { connect: { id: data.userId } }
+        : { disconnect: true };
+    }
+
     if (siblingsData !== undefined) {
       updateData.siblings = {
         deleteMany: {},
-        create: siblingsData,
+        create: normalizeFormTextFields(siblingsData),
       };
     }
 
@@ -230,6 +279,69 @@ export class StudentService {
       where: { id },
       data: updateData,
       include: { siblings: true },
+    });
+  }
+
+  async promoteGrades() {
+    return this.prisma.$transaction(async (tx) => {
+      // 1. Find all students in Grade 11
+      const grade11Students = await tx.student.findMany({
+        where: { grade: '11' },
+        select: { id: true },
+      });
+
+      const ids = grade11Students.map((s) => s.id);
+
+      if (ids.length > 0) {
+        // Delete related StudentSibling records
+        await tx.studentSibling.deleteMany({
+          where: { studentId: { in: ids } },
+        });
+
+        // Delete related RegistrationPayment records
+        await tx.registrationPayment.deleteMany({
+          where: { studentId: { in: ids } },
+        });
+
+        // Delete related Marks records
+        await tx.marks.deleteMany({
+          where: { studentId: { in: ids } },
+        });
+
+        // Delete the students themselves
+        await tx.student.deleteMany({
+          where: { id: { in: ids } },
+        });
+      }
+
+      // 2. Increment grades 10 down to 1
+      for (let i = 10; i >= 1; i--) {
+        await tx.student.updateMany({
+          where: { grade: i.toString() },
+          data: { grade: (i + 1).toString() },
+        });
+      }
+
+      return {
+        message:
+          'Grades promoted successfully. Grade 11 students graduated/removed.',
+        graduatedCount: ids.length,
+      };
+    });
+  }
+
+  async findMyStudents(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+    if (!user) {
+      return [];
+    }
+
+    // Return only students directly created/registered by this user
+    return this.prisma.student.findMany({
+      where: { userId: user.id },
+      orderBy: { fullNameWithSurname: 'asc' },
     });
   }
 }

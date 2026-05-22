@@ -192,4 +192,8 @@ export class CreateStudentRequestDto {
   @IsOptional()
   @IsString()
   studentImage?: string;
+
+  @IsOptional()
+  @IsString()
+  userId?: string;
 }

@@ -7,10 +7,12 @@ import {
   Patch,
   Post,
   Query,
+  Req,
   UploadedFile,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
+import type { Request } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { StudentService } from './student.service';
 import { CreateStudentDto } from './dto/create-student.dto';
@@ -47,6 +49,17 @@ export class StudentController {
     return this.studentService.findAll(grade, name, page, limit);
   }
 
+  @Get('my-students')
+  @Roles('STUDENT', 'TEACHER', 'ADMIN')
+  async findMyStudents(@Req() req: Request & { user?: { sub?: string } }) {
+    const userId = req.user?.sub;
+    if (!userId) {
+      return [];
+    }
+
+    return this.studentService.findMyStudents(userId);
+  }
+
   @Get(':id')
   async findOne(@Param('id', new ParseUUIDPipe()) id: string) {
     return this.studentService.findOne(id);
@@ -63,5 +76,11 @@ export class StudentController {
       dto.studentImage = file.filename || file.originalname;
     }
     return this.studentService.update(id, dto);
+  }
+
+  @Post('promote-grades')
+  @Roles('ADMIN')
+  async promoteGrades() {
+    return this.studentService.promoteGrades();
   }
 }

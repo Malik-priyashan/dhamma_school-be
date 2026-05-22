@@ -6,6 +6,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { CreatePrefectDto } from './dto/create-prefect.dto';
 import { SelectionStatus, Prisma } from '@prisma/client';
+import { normalizeFormTextFields } from '../common/text-normalizer';
 
 @Injectable()
 export class PrefectService {
@@ -193,8 +194,12 @@ export class PrefectService {
     }
 
     // payload is a runtime-shaped object built from trusted form fields.
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    return this.prisma.prefectBoard.create({ data: payload as any });
+
+    return this.prisma.prefectBoard.create({
+      data: normalizeFormTextFields(
+        payload,
+      ) as unknown as Prisma.PrefectBoardCreateInput,
+    });
   }
 
   async findAll(filters?: {
@@ -454,10 +459,11 @@ export class PrefectService {
       }
     }
 
-    console.log('PATCH PAYLOAD SENT TO PRISMA UPDATE:', payload);
     return this.prisma.prefectBoard.update({
       where: { id },
-      data: payload,
+      data: normalizeFormTextFields(
+        payload,
+      ) as unknown as Prisma.PrefectBoardUpdateInput,
     });
   }
 }
