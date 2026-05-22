@@ -7,6 +7,7 @@ import {
 import { StudentRequestStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateStudentRequestDto } from './dto/create-student-request.dto';
+import { normalizeFormTextFields } from '../common/text-normalizer';
 
 @Injectable()
 export class StudentRequestService {
@@ -49,7 +50,7 @@ export class StudentRequestService {
       return 'NOT_GIVEN';
     };
 
-    const commonData = {
+    const commonData = normalizeFormTextFields({
       fullNameWithSurname: data.fullNameWithSurname,
       nameWithInitials: data.nameWithInitials,
       dob,
@@ -95,7 +96,8 @@ export class StudentRequestService {
 
       agreeToTerms: !!data.agreeToTerms,
       studentImage: data.studentImage,
-    } as const;
+      userId: data.userId,
+    } as const);
 
     // Log the final payload so we can inspect enum values before Prisma call
     // (remove or lower log level in production)
@@ -105,7 +107,9 @@ export class StudentRequestService {
     const created = await this.prisma.studentRequest.create({
       data: {
         ...commonData,
-        siblings: siblingsData.length ? { create: siblingsData } : undefined,
+        siblings: siblingsData.length
+          ? { create: normalizeFormTextFields(siblingsData) }
+          : undefined,
       },
       include: { siblings: true },
     });
@@ -238,11 +242,12 @@ export class StudentRequestService {
 
           agreeToTerms: request.agreeToTerms,
           studentImage: request.studentImage,
+          userId: request.userId,
 
           siblings: request.siblings.length
             ? {
                 create: request.siblings.map((sibling) => ({
-                  name: sibling.name,
+                  name: normalizeFormTextFields(sibling.name, 'name'),
                   grade: sibling.grade,
                 })),
               }

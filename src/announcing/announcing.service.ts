@@ -4,6 +4,7 @@ import { Prisma } from '@prisma/client';
 import { CreateAnnouncingDto } from './dto/create-announcing.dto';
 import { QueryAnnouncingDto } from './dto/query-announcing.dto';
 import { UpdateAnnouncingDto } from './dto/update-announcing.dto';
+import { normalizeFormTextFields } from '../common/text-normalizer';
 
 @Injectable()
 export class AnnouncingService {
@@ -18,7 +19,7 @@ export class AnnouncingService {
       }
     }
 
-    const data: Prisma.AnnouncingFormCreateInput = {
+    const data: Prisma.AnnouncingFormCreateInput = normalizeFormTextFields({
       fullNameWithSurname: dto.fullNameWithSurname,
       birthday,
       address: dto.address,
@@ -30,22 +31,51 @@ export class AnnouncingService {
       studentAgreement: dto.studentAgreement ?? false,
       marks: dto.marks,
       status: dto.status,
-    };
+    });
 
     if (dto.special) {
       data.special = {
         create: {
-          announcing: dto.special.announcing as Prisma.InputJsonValue,
-          dancing: dto.special.dancing as Prisma.InputJsonValue,
-          kathika: dto.special.kathika as Prisma.InputJsonValue,
-          padyagayana: dto.special.padyagayana as Prisma.InputJsonValue,
-          debate: dto.special.debate as Prisma.InputJsonValue,
-          acting: dto.special.acting as Prisma.InputJsonValue,
-          singing: dto.special.singing as Prisma.InputJsonValue,
-          prefectOrClassLeader: dto.special
-            .prefectOrClassLeader as Prisma.InputJsonValue,
-          committee: dto.special.committee as Prisma.InputJsonValue,
-          other: dto.special.other as Prisma.InputJsonValue,
+          announcing: normalizeFormTextFields(
+            dto.special.announcing as Prisma.InputJsonValue,
+            'announcing',
+          ),
+          dancing: normalizeFormTextFields(
+            dto.special.dancing as Prisma.InputJsonValue,
+            'dancing',
+          ),
+          kathika: normalizeFormTextFields(
+            dto.special.kathika as Prisma.InputJsonValue,
+            'kathika',
+          ),
+          padyagayana: normalizeFormTextFields(
+            dto.special.padyagayana as Prisma.InputJsonValue,
+            'padyagayana',
+          ),
+          debate: normalizeFormTextFields(
+            dto.special.debate as Prisma.InputJsonValue,
+            'debate',
+          ),
+          acting: normalizeFormTextFields(
+            dto.special.acting as Prisma.InputJsonValue,
+            'acting',
+          ),
+          singing: normalizeFormTextFields(
+            dto.special.singing as Prisma.InputJsonValue,
+            'singing',
+          ),
+          prefectOrClassLeader: normalizeFormTextFields(
+            dto.special.prefectOrClassLeader as Prisma.InputJsonValue,
+            'prefectOrClassLeader',
+          ),
+          committee: normalizeFormTextFields(
+            dto.special.committee as Prisma.InputJsonValue,
+            'committee',
+          ),
+          other: normalizeFormTextFields(
+            dto.special.other as Prisma.InputJsonValue,
+            'other',
+          ),
         },
       };
     }
@@ -141,7 +171,7 @@ export class AnnouncingService {
       }
     }
 
-    const data: Prisma.AnnouncingFormUpdateInput = {
+    const data: Prisma.AnnouncingFormUpdateInput = normalizeFormTextFields({
       fullNameWithSurname: dto.fullNameWithSurname,
       birthday,
       address: dto.address,
@@ -158,7 +188,7 @@ export class AnnouncingService {
             : Number(dto.marks)
           : undefined,
       status: dto.status,
-    };
+    });
 
     // Remove undefined fields
     Object.keys(data).forEach((key) => {
@@ -186,7 +216,10 @@ export class AnnouncingService {
           ? (dto.special as Record<string, unknown>)[field]
           : undefined;
         if (val !== undefined) {
-          specialData[field] = val as Prisma.InputJsonValue;
+          specialData[field] = normalizeFormTextFields(
+            val as Prisma.InputJsonValue,
+            field,
+          );
         }
       });
 

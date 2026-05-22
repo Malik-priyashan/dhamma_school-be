@@ -44,8 +44,13 @@ model Student {
   agreeToTerms           Boolean          @default(false)
   createdAt              DateTime         @default(now())
   studentImage           String?
+  userId                 String?
+  user                   User?            @relation(fields: [userId], references: [id], onDelete: SetNull)
   siblings StudentSibling[]
   payments RegistrationPayment[]
+  marks    Marks[]
+
+  @@index([userId])
 }
 
 model AnnouncingForm {
@@ -181,8 +186,12 @@ model StudentRequest {
   createdAt              DateTime                @default(now())
   status                 StudentRequestStatus    @default(PENDING)
   studentImage           String?
+  userId                 String?
+  user                   User?                   @relation(fields: [userId], references: [id], onDelete: SetNull)
   siblings StudentRequestSibling[]
   payments RegistrationPayment[]
+
+  @@index([userId])
 }
 
 model RegistrationPayment {
@@ -226,6 +235,8 @@ model User {
   createdAt    DateTime       @default(now())
   updatedAt DateTime @updatedAt
   refreshTokens RefreshToken[]
+  students       Student[]
+  studentRequests StudentRequest[]
 }
 
 enum StudentMonitor {
@@ -256,4 +267,21 @@ enum StudentRequestStatus {
   ACCEPTED
   REJECTED
   PENDING
+}
+
+model Marks {
+  id          String   @id @default(uuid())
+  studentId   String
+  year        Int
+  teacherName String?
+  term1Marks  Float?
+  term2Marks  Float?
+  term3Marks  Float?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId])
+  @@index([year])
 }
