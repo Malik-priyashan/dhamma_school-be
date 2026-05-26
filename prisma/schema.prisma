@@ -70,6 +70,32 @@ model AnnouncingForm {
   special Special?
 }
 
+model News {
+  id           String   @id @default(uuid())
+  image        String?
+  topic        String
+  topicSi      String?
+  description  String
+  descriptionSi String?
+  happenedDate DateTime
+  createdAt    DateTime @default(now())
+
+  @@index([happenedDate])
+}
+
+model Event {
+  id           String   @id @default(uuid())
+  image        String?
+  topic        String
+  topicSi      String?
+  description  String
+  descriptionSi String?
+  happenedDate DateTime
+  createdAt    DateTime @default(now())
+
+  @@index([happenedDate])
+}
+
 model PrefectBoard {
   id String @id @default(uuid())
   entranceDay                     DateTime?
