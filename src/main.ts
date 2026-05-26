@@ -10,6 +10,17 @@ async function bootstrap() {
   // Tell Express to trust the proxy X-Forwarded-For headers
   app.set('trust proxy', 1);
 
+  // Allow hosted frontends or rewrites that forward `/api/...` to this app.
+  app.use((req, _res, next) => {
+    if (req.url === '/api') {
+      req.url = '/';
+    } else if (req.url.startsWith('/api/')) {
+      req.url = req.url.slice(4);
+    }
+
+    next();
+  });
+
   app.use(cookieParser());
 
   // Register global Prisma exception filter to provide clearer errors
