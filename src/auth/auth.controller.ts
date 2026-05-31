@@ -23,6 +23,10 @@ const COOKIE_OPTIONS = {
   path: '/',
 };
 
+function isCookieRecord(x: unknown): x is Record<string, string | undefined> {
+  return !!x && typeof x === 'object';
+}
+
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
@@ -40,7 +44,12 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     const ip = req.ip || req.socket.remoteAddress || 'unknown';
-    const userAgent = req.headers['user-agent'] || 'unknown';
+    const uaHeader = req.headers['user-agent'];
+    const userAgent = Array.isArray(uaHeader)
+      ? uaHeader.join(' ')
+      : typeof uaHeader === 'string'
+        ? uaHeader
+        : 'unknown';
 
     // Auth service returns the tokens
     const { user, accessToken, refreshToken } = await this.authService.login(
@@ -75,11 +84,35 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     const ip = req.ip || req.socket.remoteAddress || 'unknown';
-    const userAgent = req.headers['user-agent'] || 'unknown';
+    const uaHeader2 = req.headers['user-agent'];
+    const userAgent = Array.isArray(uaHeader2)
+      ? uaHeader2.join(' ')
+      : typeof uaHeader2 === 'string'
+        ? uaHeader2
+        : 'unknown';
 
-    const cookies = (req.cookies || {}) as Record<string, string | undefined>;
-    // Read the refresh token from cookies instead of the body
-    const oldRefreshToken = cookies.refreshToken;
+    const cookiesRaw = (req.cookies ?? {}) as unknown;
+
+    let cookies: Record<string, string | undefined>;
+    if (isCookieRecord(cookiesRaw)) {
+      cookies = cookiesRaw;
+    } else {
+      cookies = {};
+    }
+    // Read the refresh token from cookies; fall back to body if not present
+    let oldRefreshToken = cookies.refreshToken;
+    if (!oldRefreshToken) {
+      // Support clients that send the refresh token in the request body
+      // (e.g., mobile apps or cross-origin requests without cookies)
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      const body = (req as Request & { body?: unknown }).body;
+      if (body && typeof body === 'object' && 'refreshToken' in body) {
+        const maybe = (body as Record<string, unknown>)['refreshToken'];
+        if (typeof maybe === 'string') {
+          oldRefreshToken = maybe;
+        }
+      }
+    }
     if (!oldRefreshToken) {
       throw new UnauthorizedException('No refresh token provided');
     }
@@ -110,7 +143,14 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @Get('me')
   async getMe(@Req() req: Request) {
-    const cookies = (req.cookies || {}) as Record<string, string | undefined>;
+    const cookiesRaw = (req.cookies ?? {}) as unknown;
+
+    let cookies: Record<string, string | undefined>;
+    if (isCookieRecord(cookiesRaw)) {
+      cookies = cookiesRaw;
+    } else {
+      cookies = {};
+    }
     const token = cookies.accessToken;
     if (!token) {
       throw new UnauthorizedException('No token provided');
@@ -122,7 +162,15 @@ export class AuthController {
   @Post('logout')
   async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const ip = req.ip || req.socket.remoteAddress || 'unknown';
-    const cookies = (req.cookies || {}) as Record<string, string | undefined>;
+
+    const cookiesRaw = (req.cookies ?? {}) as unknown;
+
+    let cookies: Record<string, string | undefined>;
+    if (isCookieRecord(cookiesRaw)) {
+      cookies = cookiesRaw;
+    } else {
+      cookies = {};
+    }
     const refreshToken = cookies.refreshToken;
 
     if (refreshToken) {

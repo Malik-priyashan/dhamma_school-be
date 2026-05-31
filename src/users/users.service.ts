@@ -18,6 +18,32 @@ export class UsersService {
     return this.prisma.user.findUnique({ where: { id } });
   }
 
+  async findProfileById(id: string) {
+    return this.prisma.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        email: true,
+        fullName: true,
+        role: true,
+        isActive: true,
+        lastLoginAt: true,
+        createdAt: true,
+        updatedAt: true,
+        students: {
+          orderBy: { createdAt: 'desc' },
+          select: {
+            id: true,
+            fullNameWithSurname: true,
+            createdAt: true,
+            grade: true,
+            indexNo: true,
+          },
+        },
+      },
+    });
+  }
+
   async findAllTeachers() {
     return this.prisma.user.findMany({
       where: { role: UserRole.TEACHER },

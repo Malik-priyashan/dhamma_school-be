@@ -31,6 +31,10 @@
 $ npm install
 ```
 
+## Environment variables
+
+Add any required values to your local `.env` file before running the auth flow.
+
 ## Compile and run the project
 
 ```bash

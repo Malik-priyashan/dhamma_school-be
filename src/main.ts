@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { NestExpressApplication } from '@nestjs/platform-express';
+import type { Request, Response, NextFunction } from 'express';
 import cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
 import { PrismaExceptionFilter } from './prisma/prisma-exception.filter';
@@ -11,7 +12,7 @@ async function bootstrap() {
   app.set('trust proxy', 1);
 
   // Allow hosted frontends or rewrites that forward `/api/...` to this app.
-  app.use((req, _res, next) => {
+  app.use((req: Request, _res: Response, next: NextFunction) => {
     if (req.url === '/api') {
       req.url = '/';
     } else if (req.url.startsWith('/api/')) {
