@@ -32,6 +32,7 @@ export class EventsService {
 
     const data = normalizeFormTextFields({
       image: dto.image,
+      images: dto.images,
       topic: dto.topic,
       topicSi: dto.topicSi,
       description: dto.description,
@@ -114,6 +115,7 @@ export class EventsService {
 
     const data = normalizeFormTextFields({
       image: dto.image,
+      images: dto.images,
       topic: dto.topic,
       topicSi: dto.topicSi,
       description: dto.description,

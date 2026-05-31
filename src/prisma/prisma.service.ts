@@ -4,6 +4,8 @@ import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
 import 'dotenv/config';
 
+const SRI_LANKA_TIMEZONE = 'Asia/Colombo';
+
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit {
   private readonly logger = new Logger(PrismaService.name);
@@ -19,6 +21,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
     // Ensure Pool gets a string connection string
     const pool = new Pool({
       connectionString: String(dbUrl),
+      options: `-c timezone=${SRI_LANKA_TIMEZONE}`,
     });
 
     const adapter = new PrismaPg(pool);
@@ -65,5 +68,6 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
 
   async onModuleInit() {
     await this.$connect();
+    await this.$executeRawUnsafe(`SET TIME ZONE '${SRI_LANKA_TIMEZONE}'`);
   }
 }

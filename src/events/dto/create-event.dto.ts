@@ -5,6 +5,10 @@ export class CreateEventDto {
   @IsString()
   image?: string;
 
+  @IsOptional()
+  @IsString()
+  images?: string;
+
   @IsString()
   topic!: string;
 

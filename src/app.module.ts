@@ -13,6 +13,7 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { RegistrationPaymentModule } from './registration-payment/registration-payment.module';
 import { MarksModule } from './marks/marks.module';
+import { ContactUsModule } from './contactus/contactus.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { MarksModule } from './marks/marks.module';
     UsersModule,
     RegistrationPaymentModule,
     MarksModule,
+    ContactUsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

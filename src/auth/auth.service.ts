@@ -12,6 +12,28 @@ import { LoginDto } from './dto/login.dto';
 import { RefreshDto } from './dto/refresh.dto';
 import { randomBytes, createHash } from 'crypto';
 
+type UserProfile = NonNullable<
+  Awaited<ReturnType<UsersService['findProfileById']>>
+>;
+
+function mapUserProfile(user: UserProfile) {
+  const loginAt = user.lastLoginAt;
+
+  return {
+    id: user.id,
+    email: user.email,
+    fullName: user.fullName,
+    role: user.role,
+    isActive: user.isActive,
+    createdAt: user.createdAt,
+    updatedAt: user.updatedAt,
+    loginAt,
+    lastLoginAt: loginAt,
+    studentNames: user.students.map((student) => student.fullNameWithSurname),
+    students: user.students,
+  };
+}
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -50,7 +72,9 @@ export class AuthService {
     ip: string,
     userAgent: string,
   ): Promise<{
-    user: Omit<import('@prisma/client').User, 'passwordHash'>;
+    user: ReturnType<typeof mapUserProfile>;
+    loginAt: Date | null;
+    lastLoginAt: Date | null;
     accessToken: string;
     refreshToken: string;
   }> {
@@ -62,18 +86,22 @@ export class AuthService {
       throw new UnauthorizedException('User is inactive');
     }
 
+    const loginAt = new Date();
     await this.prisma.user.update({
       where: { id: user.id },
-      data: { lastLoginAt: new Date() },
+      data: { lastLoginAt: loginAt },
     });
 
     const result = await this.generateTokens(user.id, user.role, ip, userAgent);
-
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { passwordHash: _, ...userWithoutPassword } = user;
+    const userProfile = await this.usersService.findProfileById(user.id);
+    if (!userProfile) {
+      throw new UnauthorizedException('User not found');
+    }
 
     return {
-      user: userWithoutPassword,
+      user: mapUserProfile(userProfile),
+      loginAt: userProfile.lastLoginAt,
+      lastLoginAt: userProfile.lastLoginAt,
       accessToken: result.accessToken,
       refreshToken: result.refreshToken,
     };
@@ -144,16 +172,14 @@ export class AuthService {
         sub: string;
         role: string;
       }>(token);
-      const user = await this.usersService.findById(payload.sub);
+      const user = await this.usersService.findProfileById(payload.sub);
       if (!user) {
         throw new UnauthorizedException('User not found');
       }
       if (!user.isActive) {
         throw new UnauthorizedException('User is inactive');
       }
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { passwordHash: _, ...result } = user;
-      return result;
+      return mapUserProfile(user);
     } catch {
       throw new UnauthorizedException('Invalid token');
     }

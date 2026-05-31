@@ -19,6 +19,7 @@ const EXCLUDED_KEY_PARTS = [
   'monitor',
   'file',
   'image',
+  'images',
 ];
 
 const NAME_KEY_PARTS = ['name', 'surname', 'initials'];

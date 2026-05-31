@@ -49,6 +49,7 @@ model Student {
   siblings StudentSibling[]
   payments RegistrationPayment[]
   marks    Marks[]
+  contactUs ContactUs[]
 
   @@index([userId])
 }
@@ -86,6 +87,7 @@ model News {
 model Event {
   id           String   @id @default(uuid())
   image        String?
+  images       String?
   topic        String
   topicSi      String?
   description  String
@@ -94,6 +96,23 @@ model Event {
   createdAt    DateTime @default(now())
 
   @@index([happenedDate])
+}
+
+model ContactUs {
+  id         String          @id @default(uuid())
+  userId     String?
+  user       User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
+  studentId  String?
+  student    Student?        @relation(fields: [studentId], references: [id], onDelete: SetNull)
+  name       String
+  message    String
+  senderName String
+  status     ContactUsStatus @default(NOT_READ)
+  createdAt  DateTime        @default(now())
+
+  @@index([userId])
+  @@index([studentId])
+  @@index([status])
 }
 
 model PrefectBoard {
@@ -263,6 +282,7 @@ model User {
   refreshTokens RefreshToken[]
   students       Student[]
   studentRequests StudentRequest[]
+  contactUs      ContactUs[]
 }
 
 enum StudentMonitor {
@@ -293,6 +313,11 @@ enum StudentRequestStatus {
   ACCEPTED
   REJECTED
   PENDING
+}
+
+enum ContactUsStatus {
+  READ
+  NOT_READ
 }
 
 model Marks {
