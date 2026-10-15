@@ -2,6 +2,27 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Prisma, User, UserRole } from '@prisma/client';
 
+const userProfileSelect = {
+  id: true,
+  email: true,
+  fullName: true,
+  role: true,
+  isActive: true,
+  lastLoginAt: true,
+  createdAt: true,
+  updatedAt: true,
+  students: {
+    orderBy: { createdAt: 'desc' },
+    select: {
+      id: true,
+      fullNameWithSurname: true,
+      createdAt: true,
+      grade: true,
+      indexNo: true,
+    },
+  },
+} as const satisfies Prisma.UserSelect;
+
 @Injectable()
 export class UsersService {
   constructor(private prisma: PrismaService) {}
@@ -21,26 +42,15 @@ export class UsersService {
   async findProfileById(id: string) {
     return this.prisma.user.findUnique({
       where: { id },
-      select: {
-        id: true,
-        email: true,
-        fullName: true,
-        role: true,
-        isActive: true,
-        lastLoginAt: true,
-        createdAt: true,
-        updatedAt: true,
-        students: {
-          orderBy: { createdAt: 'desc' },
-          select: {
-            id: true,
-            fullNameWithSurname: true,
-            createdAt: true,
-            grade: true,
-            indexNo: true,
-          },
-        },
-      },
+      select: userProfileSelect,
+    });
+  }
+
+  async updateLastLoginAndFetchProfile(id: string, loginAt: Date) {
+    return this.prisma.user.update({
+      where: { id },
+      data: { lastLoginAt: loginAt },
+      select: userProfileSelect,
     });
   }
 

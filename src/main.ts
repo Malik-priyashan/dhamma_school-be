@@ -17,6 +17,8 @@ async function bootstrap() {
       req.url = '/';
     } else if (req.url.startsWith('/api/')) {
       req.url = req.url.slice(4);
+    } else if (req.url === '/login') {
+      req.url = '/auth/login';
     }
 
     next();

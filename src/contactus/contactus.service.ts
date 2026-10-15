@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { ContactUsStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { normalizeFormTextFields } from '../common/text-normalizer';
@@ -13,6 +17,26 @@ export class ContactUsService {
     const studentId = dto.studentId?.trim();
     const targetUserId =
       dto.replyToUserId?.trim() || userId || dto.userId?.trim();
+    // validate provided user and student IDs to avoid Prisma foreign key errors
+    if (targetUserId) {
+      const userExists = await this.prisma.user.findUnique({
+        where: { id: targetUserId },
+        select: { id: true },
+      });
+      if (!userExists) {
+        throw new NotFoundException('Target user not found');
+      }
+    }
+
+    if (studentId) {
+      const studentExists = await this.prisma.student.findUnique({
+        where: { id: studentId },
+        select: { id: true },
+      });
+      if (!studentExists) {
+        throw new NotFoundException('Target student not found');
+      }
+    }
     const data: Prisma.ContactUsCreateInput = {
       name: normalizeFormTextFields(dto.name),
       message: normalizeFormTextFields(dto.message),
@@ -22,32 +46,32 @@ export class ContactUsService {
       ...(studentId ? { student: { connect: { id: studentId } } } : {}),
     };
 
-    return this.prisma.contactUs.create({
-      data,
-      include: {
-        user: {
-          select: {
-            id: true,
-            fullName: true,
-            email: true,
-            students: {
-              select: {
-                id: true,
-                fullNameWithSurname: true,
-                nameWithInitials: true,
-              },
+    try {
+      return await this.prisma.contactUs.create({
+        data,
+        include: {
+          user: {
+            select: {
+              id: true,
+              fullName: true,
+              email: true,
+            },
+          },
+          student: {
+            select: {
+              id: true,
+              fullNameWithSurname: true,
+              nameWithInitials: true,
             },
           },
         },
-        student: {
-          select: {
-            id: true,
-            fullNameWithSurname: true,
-            nameWithInitials: true,
-          },
-        },
-      },
-    });
+      });
+    } catch (err) {
+      // surface a clearer message for unexpected Prisma errors
+      throw new BadRequestException(
+        err?.message || 'Failed to create contact message',
+      );
+    }
   }
 
   async findAll() {
@@ -58,13 +82,6 @@ export class ContactUsService {
             id: true,
             fullName: true,
             email: true,
-            students: {
-              select: {
-                id: true,
-                fullNameWithSurname: true,
-                nameWithInitials: true,
-              },
-            },
           },
         },
         student: {
@@ -88,13 +105,6 @@ export class ContactUsService {
             id: true,
             fullName: true,
             email: true,
-            students: {
-              select: {
-                id: true,
-                fullNameWithSurname: true,
-                nameWithInitials: true,
-              },
-            },
           },
         },
         student: {
@@ -144,10 +154,26 @@ export class ContactUsService {
 
     const targetUserId = dto.replyToUserId?.trim() || dto.userId?.trim();
     if (targetUserId) {
+      const userExists = await this.prisma.user.findUnique({
+        where: { id: targetUserId },
+        select: { id: true },
+      });
+      if (!userExists) {
+        throw new NotFoundException('Target user not found');
+      }
+
       data.user = { connect: { id: targetUserId } };
     }
 
     if (studentId) {
+      const studentExists = await this.prisma.student.findUnique({
+        where: { id: studentId },
+        select: { id: true },
+      });
+      if (!studentExists) {
+        throw new NotFoundException('Target student not found');
+      }
+
       data.student = { connect: { id: studentId } };
     }
 
@@ -212,13 +238,6 @@ export class ContactUsService {
             id: true,
             fullName: true,
             email: true,
-            students: {
-              select: {
-                id: true,
-                fullNameWithSurname: true,
-                nameWithInitials: true,
-              },
-            },
           },
         },
         student: {
