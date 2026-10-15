@@ -27,6 +27,25 @@ function isCookieRecord(x: unknown): x is Record<string, string | undefined> {
   return !!x && typeof x === 'object';
 }
 
+function readAccessToken(req: Request): string | undefined {
+  const cookiesRaw = (req.cookies ?? {}) as unknown;
+
+  let cookies: Record<string, string | undefined>;
+  if (isCookieRecord(cookiesRaw)) {
+    cookies = cookiesRaw;
+  } else {
+    cookies = {};
+  }
+
+  const token = cookies.accessToken;
+  if (token) {
+    return token;
+  }
+
+  const [type, authHeaderToken] = req.headers.authorization?.split(' ') ?? [];
+  return type === 'Bearer' ? authHeaderToken : undefined;
+}
+
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
@@ -72,8 +91,6 @@ export class AuthController {
     return {
       message: 'Logged in successfully',
       user,
-      accessToken,
-      refreshToken,
     };
   }
 
@@ -135,25 +152,15 @@ export class AuthController {
 
     return {
       message: 'Token refreshed successfully',
-      accessToken,
-      refreshToken,
     };
   }
 
   @HttpCode(HttpStatus.OK)
   @Get('me')
   async getMe(@Req() req: Request) {
-    const cookiesRaw = (req.cookies ?? {}) as unknown;
-
-    let cookies: Record<string, string | undefined>;
-    if (isCookieRecord(cookiesRaw)) {
-      cookies = cookiesRaw;
-    } else {
-      cookies = {};
-    }
-    const token = cookies.accessToken;
+    const token = readAccessToken(req);
     if (!token) {
-      throw new UnauthorizedException('No token provided');
+      return null;
     }
     return this.authService.getMe(token);
   }
@@ -182,5 +189,20 @@ export class AuthController {
     res.clearCookie('refreshToken', COOKIE_OPTIONS);
 
     return { message: 'Logged out successfully' };
+  }
+}
+
+@Controller()
+export class AuthMeController {
+  constructor(private readonly authService: AuthService) {}
+
+  @HttpCode(HttpStatus.OK)
+  @Get('me')
+  async getMe(@Req() req: Request) {
+    const token = readAccessToken(req);
+    if (!token) {
+      return null;
+    }
+    return this.authService.getMe(token);
   }
 }

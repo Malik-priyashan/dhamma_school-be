@@ -87,13 +87,12 @@ export class AuthService {
     }
 
     const loginAt = new Date();
-    await this.prisma.user.update({
-      where: { id: user.id },
-      data: { lastLoginAt: loginAt },
-    });
+    const userProfile = await this.usersService.updateLastLoginAndFetchProfile(
+      user.id,
+      loginAt,
+    );
 
     const result = await this.generateTokens(user.id, user.role, ip, userAgent);
-    const userProfile = await this.usersService.findProfileById(user.id);
     if (!userProfile) {
       throw new UnauthorizedException('User not found');
     }
