@@ -2,15 +2,25 @@ import {
   Injectable,
   UnauthorizedException,
   BadRequestException,
+  ServiceUnavailableException,
+  HttpException,
+  HttpStatus,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { UsersService } from '../users/users.service';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
+import nodemailer from 'nodemailer';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshDto } from './dto/refresh.dto';
-import { randomBytes, createHash } from 'crypto';
+import {
+  randomBytes,
+  randomInt,
+  createHash,
+  createHmac,
+  timingSafeEqual,
+} from 'crypto';
 
 type UserProfile = NonNullable<
   Awaited<ReturnType<UsersService['findProfileById']>>
@@ -42,24 +52,205 @@ export class AuthService {
     private readonly jwtService: JwtService,
   ) {}
 
+  private normalizeEmail(email: string): string {
+    return email.trim().toLowerCase();
+  }
+
+  private codeDigest(email: string, code: string): string {
+    const secret = process.env.EMAIL_VERIFICATION_SECRET;
+    if (!secret || secret.length < 32) {
+      throw new ServiceUnavailableException(
+        'Email verification is not configured',
+      );
+    }
+    return createHmac('sha256', secret)
+      .update(`${email}:${code}`)
+      .digest('hex');
+  }
+
+  async sendRegistrationCode(rawEmail: string) {
+    const email = this.normalizeEmail(rawEmail);
+    if (await this.usersService.findByEmail(email)) {
+      throw new BadRequestException('Email already in use');
+    }
+    const now = new Date();
+    const previous = await this.prisma.registrationEmailVerification.findUnique(
+      { where: { email } },
+    );
+    if (previous && now.getTime() - previous.sentAt.getTime() < 60_000) {
+      throw new HttpException(
+        'Please wait one minute before requesting another code',
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+    const code = randomInt(0, 1_000_000).toString().padStart(6, '0');
+    const codeHash = this.codeDigest(email, code);
+    const subject = 'Your Dhamma School verification code';
+    const text = `Your Dhamma School verification code is ${code}. It expires in 10 minutes. If you did not request this code, you can ignore this email.`;
+    const provider = (process.env.EMAIL_PROVIDER || 'resend')
+      .trim()
+      .toLowerCase();
+
+    if (provider === 'gmail') {
+      const gmailUser = process.env.GMAIL_USER?.trim();
+      const gmailAppPassword = process.env.GMAIL_APP_PASSWORD?.replace(
+        /\s/g,
+        '',
+      );
+      if (!gmailUser || !gmailAppPassword) {
+        throw new ServiceUnavailableException(
+          'Gmail email verification is not configured',
+        );
+      }
+      const gmailSmtpPort = process.env.GMAIL_SMTP_PORT === '587' ? 587 : 465;
+      try {
+        await nodemailer
+          .createTransport({
+            host: 'smtp.gmail.com',
+            port: gmailSmtpPort,
+            secure: gmailSmtpPort === 465,
+            requireTLS: gmailSmtpPort === 587,
+            auth: { user: gmailUser, pass: gmailAppPassword },
+            connectionTimeout: 10_000,
+            greetingTimeout: 10_000,
+            socketTimeout: 15_000,
+          })
+          .sendMail({
+            from: `Dhamma School <${gmailUser}>`,
+            to: email,
+            subject,
+            text,
+          });
+      } catch {
+        throw new ServiceUnavailableException(
+          'Unable to send verification email. Please try again.',
+        );
+      }
+    } else if (provider === 'resend') {
+      const apiKey = process.env.RESEND_API_KEY;
+      const from = process.env.RESEND_FROM_EMAIL;
+      if (!apiKey || !from) {
+        throw new ServiceUnavailableException(
+          'Resend email verification is not configured',
+        );
+      }
+      const response = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ from, to: [email], subject, text }),
+      }).catch(() => null);
+      if (!response?.ok) {
+        throw new ServiceUnavailableException(
+          'Unable to send verification email. Please try again.',
+        );
+      }
+    } else {
+      throw new ServiceUnavailableException(
+        'Invalid email provider configuration',
+      );
+    }
+    await this.prisma.registrationEmailVerification.upsert({
+      where: { email },
+      update: {
+        codeHash,
+        proofHash: null,
+        verifiedAt: null,
+        attempts: 0,
+        sentAt: now,
+        expiresAt: new Date(now.getTime() + 10 * 60_000),
+      },
+      create: {
+        email,
+        codeHash,
+        sentAt: now,
+        expiresAt: new Date(now.getTime() + 10 * 60_000),
+      },
+    });
+    return { message: 'Verification code sent' };
+  }
+
+  async verifyRegistrationCode(rawEmail: string, code: string) {
+    const email = this.normalizeEmail(rawEmail);
+    const record = await this.prisma.registrationEmailVerification.findUnique({
+      where: { email },
+    });
+    if (
+      !record ||
+      record.expiresAt <= new Date() ||
+      record.attempts >= 5 ||
+      record.verifiedAt
+    ) {
+      throw new BadRequestException(
+        'Code expired or unavailable. Request a new code.',
+      );
+    }
+    const actual = Buffer.from(this.codeDigest(email, code), 'hex');
+    const expected = Buffer.from(record.codeHash, 'hex');
+    if (
+      actual.length !== expected.length ||
+      !timingSafeEqual(actual, expected)
+    ) {
+      await this.prisma.registrationEmailVerification.updateMany({
+        where: { email, codeHash: record.codeHash, verifiedAt: null },
+        data: { attempts: { increment: 1 } },
+      });
+      throw new BadRequestException('Incorrect code. Please try again.');
+    }
+    const verificationToken = randomBytes(32).toString('base64url');
+    const updated = await this.prisma.registrationEmailVerification.updateMany({
+      where: {
+        email,
+        codeHash: record.codeHash,
+        verifiedAt: null,
+        expiresAt: { gt: new Date() },
+        attempts: { lt: 5 },
+      },
+      data: {
+        verifiedAt: new Date(),
+        proofHash: createHash('sha256').update(verificationToken).digest('hex'),
+      },
+    });
+    if (updated.count !== 1) {
+      throw new BadRequestException(
+        'Code expired or unavailable. Request a new code.',
+      );
+    }
+    return { verificationToken };
+  }
+
   async register(dto: RegisterDto) {
-    const existing = await this.usersService.findByEmail(dto.email);
-    if (existing) {
+    const email = this.normalizeEmail(dto.email);
+    if (await this.usersService.findByEmail(email)) {
       throw new BadRequestException('Email already in use');
     }
 
     const passwordHash = await bcrypt.hash(dto.password, 10);
+    if (dto.role === 'ADMIN') {
+      throw new BadRequestException('Invalid registration role');
+    }
     const role = dto.role || 'STUDENT';
     const isActive = role !== 'TEACHER'; // Teacher needs approval
-
-    const user = await this.prisma.user.create({
-      data: {
-        email: dto.email,
-        passwordHash,
-        fullName: dto.fullName,
-        role,
-        isActive,
-      },
+    const proofHash = createHash('sha256')
+      .update(dto.verificationToken)
+      .digest('hex');
+    const user = await this.prisma.$transaction(async (tx) => {
+      const consumed = await tx.registrationEmailVerification.deleteMany({
+        where: {
+          email,
+          proofHash,
+          verifiedAt: { not: null },
+          expiresAt: { gt: new Date() },
+        },
+      });
+      if (consumed.count !== 1) {
+        throw new BadRequestException('Confirm your email before signing up');
+      }
+      return tx.user.create({
+        data: { email, passwordHash, fullName: dto.fullName, role, isActive },
+      });
     });
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
