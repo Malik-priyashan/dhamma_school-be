@@ -13,6 +13,8 @@ import type { Request, Response } from 'express';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { SendRegistrationCodeDto } from './dto/send-registration-code.dto';
+import { VerifyRegistrationCodeDto } from './dto/verify-registration-code.dto';
 
 const isProduction = process.env.NODE_ENV === 'production';
 
@@ -49,6 +51,18 @@ function readAccessToken(req: Request): string | undefined {
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
+
+  @HttpCode(HttpStatus.OK)
+  @Post('registration-email/send')
+  sendRegistrationCode(@Body() dto: SendRegistrationCodeDto) {
+    return this.authService.sendRegistrationCode(dto.email);
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @Post('registration-email/verify')
+  verifyRegistrationCode(@Body() dto: VerifyRegistrationCodeDto) {
+    return this.authService.verifyRegistrationCode(dto.email, dto.code);
+  }
 
   @Post('register')
   register(@Body() dto: RegisterDto) {
