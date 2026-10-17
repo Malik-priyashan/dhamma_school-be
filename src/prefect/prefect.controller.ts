@@ -5,11 +5,14 @@ import {
   Post,
   Patch,
   Param,
+  Req,
   Query,
   UploadedFile,
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { imageUploadOptions } from '../common/image-upload';
+import type { Request } from 'express';
 import { PrefectService } from './prefect.service';
 import { CreatePrefectDto } from './dto/create-prefect.dto';
 import { UpdatePrefectDto } from './dto/update-prefect.dto';
@@ -25,8 +28,9 @@ export class PrefectController {
   constructor(private readonly prefectService: PrefectService) {}
 
   @Post('register')
-  @UseInterceptors(FileInterceptor('teacherConfirmation'))
+  @UseInterceptors(FileInterceptor('teacherConfirmation', imageUploadOptions))
   async register(
+    @Req() req: Request & { user?: { role: string } },
     @UploadedFile() file?: { filename?: string; originalname?: string },
     @Body() dto?: CreatePrefectDto,
   ) {
@@ -41,10 +45,20 @@ export class PrefectController {
             : undefined;
       if (filename) data.teachersAgreementFile = filename;
     }
+    if (req.user?.role === 'STUDENT') {
+      data.status = undefined;
+      data.marks = undefined;
+      data.teachersAgreement = undefined;
+      data.teachersConfirmFile = undefined;
+      data.libraryStatus = undefined;
+      data.regNo = undefined;
+      data.specialNote = undefined;
+    }
     return this.prefectService.create(data);
   }
 
   @Get()
+  @Roles('ADMIN')
   async getAll(
     @Query('status') status?: string,
     @Query('grade') grade?: string,
@@ -64,8 +78,8 @@ export class PrefectController {
   }
 
   @Patch(':id')
+  @Roles('ADMIN')
   async update(@Param('id') id: string, @Body() dto: UpdatePrefectDto) {
-    console.log('PATCH API DTO RECEIVED:', dto);
     return this.prefectService.update(id, dto);
   }
 }

@@ -11,6 +11,8 @@ import {
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { AuthService } from './auth.service';
+import { PrismaService } from '../prisma/prisma.service';
+import { enforceRateLimit, requestIp } from '../common/rate-limit';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { SendRegistrationCodeDto } from './dto/send-registration-code.dto';
@@ -50,17 +52,24 @@ function readAccessToken(req: Request): string | undefined {
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly prisma: PrismaService,
+  ) {}
 
   @HttpCode(HttpStatus.OK)
   @Post('registration-email/send')
-  sendRegistrationCode(@Body() dto: SendRegistrationCodeDto) {
+  async sendRegistrationCode(@Body() dto: SendRegistrationCodeDto, @Req() req: Request) {
+    await enforceRateLimit(this.prisma, 'email-send-ip', requestIp(req), 12, 60 * 60_000);
+    await enforceRateLimit(this.prisma, 'email-send-address', dto.email, 4, 60 * 60_000);
     return this.authService.sendRegistrationCode(dto.email);
   }
 
   @HttpCode(HttpStatus.OK)
   @Post('registration-email/verify')
-  verifyRegistrationCode(@Body() dto: VerifyRegistrationCodeDto) {
+  async verifyRegistrationCode(@Body() dto: VerifyRegistrationCodeDto, @Req() req: Request) {
+    await enforceRateLimit(this.prisma, 'email-verify-ip', requestIp(req), 40, 60 * 60_000);
+    await enforceRateLimit(this.prisma, 'email-verify-address', dto.email, 15, 60 * 60_000);
     return this.authService.verifyRegistrationCode(dto.email, dto.code);
   }
 
@@ -83,6 +92,9 @@ export class AuthController {
       : typeof uaHeader === 'string'
         ? uaHeader
         : 'unknown';
+
+    await enforceRateLimit(this.prisma, 'login-ip', ip, 40, 15 * 60_000);
+    await enforceRateLimit(this.prisma, 'login-address', dto.email, 20, 15 * 60_000);
 
     // Auth service returns the tokens
     const { user, accessToken, refreshToken } = await this.authService.login(
@@ -122,6 +134,7 @@ export class AuthController {
         ? uaHeader2
         : 'unknown';
 
+    await enforceRateLimit(this.prisma, 'refresh-ip', ip, 100, 60 * 60_000);
     const cookiesRaw = (req.cookies ?? {}) as unknown;
 
     let cookies: Record<string, string | undefined>;

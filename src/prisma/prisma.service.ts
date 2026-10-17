@@ -26,20 +26,13 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
 
     const adapter = new PrismaPg(pool);
 
-    // Enable Prisma query logging so SQL is printed to the console
+    // Keep query parameters out of production logs
     // Prisma constructor types are strict when using a custom adapter; this
     // line intentionally passes a runtime-built options object.
     // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-    super({ adapter, log: ['query', 'info', 'warn', 'error'] } as any);
-
-    interface PrismaQueryEvent {
-      query: string;
-      params: string;
-      duration: number;
-    }
+    super({ adapter, log: ['warn', 'error'] } as any);
 
     const prismaWithEvents = this as unknown as {
-      $on(event: 'query', callback: (event: PrismaQueryEvent) => void): void;
       $on(
         event: 'info' | 'warn' | 'error',
         callback: (event: unknown) => void,
@@ -47,12 +40,6 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
     };
 
     // Log queries using Nest's logger for consistent output in VS Code terminal
-    prismaWithEvents.$on('query', (e) => {
-      this.logger.debug(
-        `Prisma query: ${e.query} -- params: ${e.params} -- duration: ${e.duration}ms`,
-      );
-    });
-
     prismaWithEvents.$on('info', (e) =>
       this.logger.log(`Prisma info: ${JSON.stringify(e)}`),
     );

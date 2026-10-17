@@ -10,7 +10,9 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
+import { AuthService } from '../auth/auth.service';
+import { PrismaService } from '../prisma/prisma.service';
+import { enforceRateLimit, requestIp } from '../common/rate-limit';
 import type { Request } from 'express';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -23,13 +25,15 @@ import { ContactUsService } from './contactus.service';
 export class ContactUsController {
   constructor(
     private readonly contactUsService: ContactUsService,
-    private readonly jwtService: JwtService,
+    private readonly authService: AuthService,
+    private readonly prisma: PrismaService,
   ) {}
 
   @Post()
   async create(@Req() req: Request, @Body() dto: CreateContactUsDto) {
-    const userId = await this.resolveUserId(req);
-    return this.contactUsService.create(dto, userId);
+    await enforceRateLimit(this.prisma, 'contact-ip', requestIp(req), 30, 60 * 60_000);
+    const actor = await this.resolveUser(req);
+    return this.contactUsService.create(dto, actor?.id, actor?.role === 'ADMIN');
   }
 
   @Get()
@@ -132,30 +136,22 @@ export class ContactUsController {
   }
 
   private async resolveUserId(request: Request): Promise<string | undefined> {
-    const cookies = (request.cookies || {}) as Record<
-      string,
-      string | undefined
-    >;
+    return (await this.resolveUser(request))?.id;
+  }
+
+  private async resolveUser(
+    request: Request,
+  ): Promise<{ id: string; role: string } | undefined> {
+    const cookies = (request.cookies || {}) as Record<string, string | undefined>;
     let token = cookies.accessToken;
-
     if (!token) {
-      const [type, authHeaderToken] =
-        request.headers.authorization?.split(' ') ?? [];
-      token = type === 'Bearer' ? authHeaderToken : undefined;
+      const [type, bearer] = request.headers.authorization?.split(' ') ?? [];
+      token = type === 'Bearer' ? bearer : undefined;
     }
-
-    if (!token) {
-      return undefined;
-    }
-
+    if (!token) return undefined;
     try {
-      const payload = await this.jwtService.verifyAsync<{ sub: string }>(
-        token,
-        {
-          secret: process.env.JWT_SECRET || 'super-secret-default-key',
-        },
-      );
-      return payload.sub;
+      const user = await this.authService.getMe(token);
+      return { id: user.id, role: user.role };
     } catch {
       return undefined;
     }

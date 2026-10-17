@@ -102,7 +102,6 @@ export class StudentRequestService {
     // Log the final payload so we can inspect enum values before Prisma call
     // (remove or lower log level in production)
 
-    console.debug('studentRequest.create payload:', JSON.stringify(commonData));
 
     const created = await this.prisma.studentRequest.create({
       data: {

@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { ContactUsStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
@@ -13,10 +14,18 @@ import { UpdateContactUsDto } from './dto/update-contactus.dto';
 export class ContactUsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(dto: CreateContactUsDto, userId?: string) {
+  async create(dto: CreateContactUsDto, userId?: string, isAdmin = false) {
     const studentId = dto.studentId?.trim();
-    const targetUserId =
-      dto.replyToUserId?.trim() || userId || dto.userId?.trim();
+    const targetUserId = isAdmin
+      ? dto.replyToUserId?.trim() || userId
+      : userId;
+    if (studentId && !isAdmin) {
+      const ownedStudent = userId && await this.prisma.student.findFirst({
+        where: { id: studentId, userId },
+        select: { id: true },
+      });
+      if (!ownedStudent) throw new ForbiddenException('Student record is not yours');
+    }
     // validate provided user and student IDs to avoid Prisma foreign key errors
     if (targetUserId) {
       const userExists = await this.prisma.user.findUnique({
@@ -40,8 +49,12 @@ export class ContactUsService {
     const data: Prisma.ContactUsCreateInput = {
       name: normalizeFormTextFields(dto.name),
       message: normalizeFormTextFields(dto.message),
-      senderName: normalizeFormTextFields(dto.senderName),
-      status: dto.status ?? 'NOT_READ',
+      senderName: isAdmin
+        ? 'Admin'
+        : /^admin(istrator)?$/i.test(dto.senderName.trim())
+          ? 'Guest'
+          : normalizeFormTextFields(dto.senderName),
+      status: 'NOT_READ',
       ...(targetUserId ? { user: { connect: { id: targetUserId } } } : {}),
       ...(studentId ? { student: { connect: { id: studentId } } } : {}),
     };
@@ -68,9 +81,7 @@ export class ContactUsService {
       });
     } catch (err) {
       // surface a clearer message for unexpected Prisma errors
-      throw new BadRequestException(
-        err?.message || 'Failed to create contact message',
-      );
+      throw new BadRequestException('Failed to create contact message');
     }
   }
 
@@ -192,7 +203,13 @@ export class ContactUsService {
       throw new NotFoundException('Contact message not found');
     }
 
-    return this.update(id, dto);
+    return this.prisma.contactUs.update({
+      where: { id },
+      data: {
+        ...(dto.name !== undefined ? { name: normalizeFormTextFields(dto.name) } : {}),
+        ...(dto.message !== undefined ? { message: normalizeFormTextFields(dto.message) } : {}),
+      },
+    });
   }
 
   async markThreadRead(id: string, dto: UpdateContactUsDto) {

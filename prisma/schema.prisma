@@ -158,6 +158,14 @@ model PrefectBoard {
   specialNote                     String?
 }
 
+model RateLimitEntry {
+  key       String   @id
+  count     Int
+  expiresAt DateTime
+
+  @@index([expiresAt])
+}
+
 model RefreshToken {
   id String @id @default(uuid())
   userId       String

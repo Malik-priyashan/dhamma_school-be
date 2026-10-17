@@ -14,6 +14,7 @@ import {
 } from '@nestjs/common';
 import { Request } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { imageUploadOptions } from '../common/image-upload';
 import { StudentRequestService } from './student-request.service';
 import { CreateStudentRequestDto } from './dto/create-student-request.dto';
 import { AuthGuard } from '../auth/guards/auth.guard';
@@ -27,7 +28,7 @@ export class StudentRequestController {
   constructor(private readonly studentService: StudentRequestService) {}
 
   @Post('submit')
-  @UseInterceptors(FileInterceptor('studentImage'))
+  @UseInterceptors(FileInterceptor('studentImage', imageUploadOptions))
   async submit(
     @Req() req: Request & { user?: { sub: string; role: string } },
     @UploadedFile() file: { filename?: string; originalname?: string },
@@ -39,11 +40,18 @@ export class StudentRequestController {
     // If the authenticated user is a STUDENT, automatically associate their userId
     if (req.user && req.user.role === 'STUDENT') {
       dto.userId = req.user.sub;
+      dto.registrationPayment = undefined;
+      dto.registrationDate = undefined;
+      dto.indexNo = undefined;
+      dto.libraryNo = undefined;
+      dto.house = undefined;
+      dto.studentActiveMonitor = undefined;
     }
     return this.studentService.createRequest(dto);
   }
 
   @Get()
+  @Roles('ADMIN')
   async findAllRequests(
     @Query('status') status?: string,
     @Query('createdDate') createdDate?: string,
