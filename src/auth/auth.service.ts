@@ -7,6 +7,7 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { Prisma } from '@prisma/client';
 import { UsersService } from '../users/users.service';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
@@ -324,24 +325,31 @@ export class AuthService {
       throw new UnauthorizedException('Invalid refresh token');
     }
 
-    const { accessToken, refreshToken, tokenId } = await this.generateTokens(
-      tokenRecord.userId,
-      tokenRecord.user.role,
-      ip,
-      userAgent,
-    );
+    // Claim and replace the token in one transaction so parallel refreshes cannot reuse it.
+    return this.prisma.$transaction(async (tx) => {
+      const claimed = await tx.refreshToken.updateMany({
+        where: {
+          id: tokenRecord.id,
+          revokedAt: null,
+          expiresAt: { gt: new Date() },
+        },
+        data: { revokedAt: new Date(), revokedByIp: ip },
+      });
+      if (claimed.count !== 1) throw new UnauthorizedException('Invalid refresh token');
 
-    // Rotate the token: mark old as revoked and link the new one
-    await this.prisma.refreshToken.update({
-      where: { id: tokenRecord.id },
-      data: {
-        revokedAt: new Date(),
-        revokedByIp: ip,
-        replacedById: tokenId,
-      },
+      const { accessToken, refreshToken, tokenId } = await this.generateTokens(
+        tokenRecord.userId,
+        tokenRecord.user.role,
+        ip,
+        userAgent,
+        tx,
+      );
+      await tx.refreshToken.update({
+        where: { id: tokenRecord.id },
+        data: { replacedById: tokenId },
+      });
+      return { accessToken, refreshToken };
     });
-
-    return { accessToken, refreshToken };
   }
 
   async logout(refreshToken: string, ip: string) {
@@ -380,6 +388,7 @@ export class AuthService {
     role: string,
     ip: string,
     userAgent: string,
+    tokenStore: Pick<Prisma.TransactionClient, 'refreshToken'> = this.prisma,
   ): Promise<{ accessToken: string; refreshToken: string; tokenId: string }> {
     const payload = { sub: userId, role };
     const accessToken = await this.jwtService.signAsync(payload, {
@@ -393,7 +402,7 @@ export class AuthService {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7); // 7 days
 
-    const newTokenRecord = await this.prisma.refreshToken.create({
+    const newTokenRecord = await tokenStore.refreshToken.create({
       data: {
         userId,
         tokenHash,

@@ -14,6 +14,7 @@ import {
 } from '@nestjs/common';
 import type { Request } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { imageUploadOptions } from '../common/image-upload';
 import { StudentService } from './student.service';
 import { CreateStudentDto } from './dto/create-student.dto';
 import { UpdateStudentDto } from './dto/update-student.dto';
@@ -28,7 +29,8 @@ export class StudentController {
   constructor(private readonly studentService: StudentService) {}
 
   @Post()
-  @UseInterceptors(FileInterceptor('studentImage'))
+  @Roles('ADMIN')
+  @UseInterceptors(FileInterceptor('studentImage', imageUploadOptions))
   async create(
     @UploadedFile() file: { filename?: string; originalname?: string },
     @Body() dto: CreateStudentDto,
@@ -41,12 +43,24 @@ export class StudentController {
 
   @Get()
   async findAll(
+    @Req() req: Request & { user?: { role: string } },
     @Query('grade') grade?: string,
     @Query('name') name?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
   ) {
-    return this.studentService.findAll(grade, name, page, limit);
+    const result = await this.studentService.findAll(grade, name, page, limit);
+    if (req.user?.role !== 'TEACHER') return result;
+    return {
+      ...result,
+      data: result.data.map((student) => ({
+        id: student.id,
+        fullNameWithSurname: student.fullNameWithSurname,
+        nameWithInitials: student.nameWithInitials,
+        grade: student.grade,
+        studentImage: student.studentImage,
+      })),
+    };
   }
 
   @Get('my-students')
@@ -61,12 +75,14 @@ export class StudentController {
   }
 
   @Get(':id')
+  @Roles('ADMIN')
   async findOne(@Param('id', new ParseUUIDPipe()) id: string) {
     return this.studentService.findOne(id);
   }
 
   @Patch(':id')
-  @UseInterceptors(FileInterceptor('studentImage'))
+  @Roles('ADMIN')
+  @UseInterceptors(FileInterceptor('studentImage', imageUploadOptions))
   async update(
     @Param('id', new ParseUUIDPipe()) id: string,
     @UploadedFile() file: { filename?: string; originalname?: string },

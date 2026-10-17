@@ -6,8 +6,10 @@ import {
   Patch,
   Param,
   Query,
+  Req,
   UseGuards,
 } from '@nestjs/common';
+import type { Request } from 'express';
 import { AnnouncingService } from './announcing.service';
 import { CreateAnnouncingDto } from './dto/create-announcing.dto';
 import { QueryAnnouncingDto } from './dto/query-announcing.dto';
@@ -23,16 +25,25 @@ export class AnnouncingController {
   constructor(private readonly announcingService: AnnouncingService) {}
 
   @Post()
-  async create(@Body() dto: CreateAnnouncingDto) {
+  async create(
+    @Req() req: Request & { user?: { role: string } },
+    @Body() dto: CreateAnnouncingDto,
+  ) {
+    if (req.user?.role === 'STUDENT') {
+      dto.status = undefined;
+      dto.marks = undefined;
+    }
     return this.announcingService.create(dto);
   }
 
   @Get()
+  @Roles('ADMIN')
   async findAll(@Query() query: QueryAnnouncingDto) {
     return this.announcingService.findAll(query);
   }
 
   @Patch(':id')
+  @Roles('ADMIN')
   async update(@Param('id') id: string, @Body() dto: UpdateAnnouncingDto) {
     return this.announcingService.update(id, dto);
   }

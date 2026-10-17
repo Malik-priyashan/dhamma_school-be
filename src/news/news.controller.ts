@@ -13,6 +13,7 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { imageUploadOptions } from '../common/image-upload';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -28,7 +29,7 @@ export class NewsController {
   @Post()
   @UseGuards(AuthGuard, RolesGuard)
   @Roles('ADMIN')
-  @UseInterceptors(FileInterceptor('image'))
+  @UseInterceptors(FileInterceptor('image', imageUploadOptions))
   async create(
     @UploadedFile() file?: { filename?: string; originalname?: string },
     @Body() dto?: CreateNewsDto,
@@ -53,7 +54,7 @@ export class NewsController {
   @Patch(':id')
   @UseGuards(AuthGuard, RolesGuard)
   @Roles('ADMIN')
-  @UseInterceptors(FileInterceptor('image'))
+  @UseInterceptors(FileInterceptor('image', imageUploadOptions))
   async update(
     @Param('id', new ParseUUIDPipe()) id: string,
     @UploadedFile() file?: { filename?: string; originalname?: string },
