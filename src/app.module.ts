@@ -4,7 +4,6 @@ import { AppService } from './app.service';
 import { PrismaModule } from './prisma/prisma.module';
 import { StudentModule } from './student/student.module';
 import { StudentRequestModule } from './student-request/student-request.module';
-// Youtube module removed
 import { PrefectModule } from './prefect/prefect.module';
 import { AnnouncingModule } from './announcing/announcing.module';
 import { NewsModule } from './news/news.module';
@@ -14,6 +13,7 @@ import { UsersModule } from './users/users.module';
 import { RegistrationPaymentModule } from './registration-payment/registration-payment.module';
 import { MarksModule } from './marks/marks.module';
 import { ContactUsModule } from './contactus/contactus.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
@@ -29,6 +29,7 @@ import { ContactUsModule } from './contactus/contactus.module';
     RegistrationPaymentModule,
     MarksModule,
     ContactUsModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
