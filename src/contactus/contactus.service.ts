@@ -79,7 +79,7 @@ export class ContactUsService {
           },
         },
       });
-    } catch (err) {
+    } catch {
       // surface a clearer message for unexpected Prisma errors
       throw new BadRequestException('Failed to create contact message');
     }
