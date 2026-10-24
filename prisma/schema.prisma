@@ -40,6 +40,7 @@ model Student {
   libraryNo              String?
   house                  String?
   grade                  String?
+  gender                 String?
   studentActiveMonitor   StudentMonitor   @default(NOT_GIVEN)
   agreeToTerms           Boolean          @default(false)
   createdAt              DateTime         @default(now())
@@ -234,6 +235,7 @@ model StudentRequest {
   libraryNo              String?
   house                  String?
   grade                  String?
+  gender                 String?
   studentActiveMonitor   StudentMonitor          @default(NOT_GIVEN)
   agreeToTerms           Boolean                 @default(false)
   createdAt              DateTime                @default(now())

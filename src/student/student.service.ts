@@ -111,6 +111,7 @@ export class StudentService {
         libraryNo: data.libraryNo,
         house: normalizeFormTextFields(data.house, 'house'),
         grade: data.grade,
+        gender: data.gender,
         studentActiveMonitor: data.studentActiveMonitor || 'NOT_GIVEN',
 
         agreeToTerms: !!data.agreeToTerms,
@@ -173,6 +174,23 @@ export class StudentService {
     };
   }
 
+  async dashboard() {
+    const grades = Array.from({ length: 11 }, (_, i) => String(i + 1));
+    const [groups, prefects, announcing, teachers] = await Promise.all([
+      this.prisma.student.groupBy({ by: ['grade', 'gender'], where: { grade: { in: grades } }, _count: { _all: true } }),
+      this.prisma.prefectBoard.count({ where: { status: 'SELECTED' } }),
+      this.prisma.announcingForm.count({ where: { status: 'SELECTED' } }),
+      this.prisma.user.findMany({ where: { role: 'TEACHER' }, select: { id: true, fullName: true, email: true, isActive: true }, orderBy: { fullName: 'asc' } }),
+    ]);
+    const totals = grades.map((grade) => {
+      const rows = groups.filter((group) => group.grade === grade);
+      return { grade, boys: rows.find((row) => row.gender === 'BOY')?._count._all || 0,
+        girls: rows.find((row) => row.gender === 'GIRL')?._count._all || 0,
+        total: rows.reduce((sum, row) => sum + row._count._all, 0) };
+    });
+    return { grades: totals, students: totals.reduce((sum, row) => sum + row.total, 0), prefects, announcing, teachers };
+  }
+
   async findOne(id: string) {
     const student = await this.prisma.student.findUnique({
       where: { id },
@@ -232,6 +250,7 @@ export class StudentService {
       libraryNo: data.libraryNo,
       house: data.house,
       grade: data.grade,
+      gender: data.gender,
       studentActiveMonitor: data.studentActiveMonitor,
       studentImage: data.studentImage,
     }) as Prisma.StudentUpdateInput & Record<string, any>;

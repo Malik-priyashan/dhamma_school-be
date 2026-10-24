@@ -177,7 +177,19 @@ export class StudentRequestService {
     };
   }
 
-  async acceptRequest(requestId: string) {
+  async acceptRequest(requestId: string, details: {
+    gender?: 'BOY' | 'GIRL'; grade?: string; indexNo?: string; libraryNo?: string;
+    house?: string; registrationDate?: string; studentActiveMonitor?: 'GIVEN' | 'NOT_GIVEN';
+  }) {
+    if (!['BOY', 'GIRL'].includes(details?.gender || '')) {
+      throw new BadRequestException('Select girl or boy before approval');
+    }
+    if (!Array.from({ length: 11 }, (_, i) => String(i + 1)).includes(details.grade || '')) {
+      throw new BadRequestException('Select a grade from 1 to 11 before approval');
+    }
+    if (details.studentActiveMonitor && !['GIVEN', 'NOT_GIVEN'].includes(details.studentActiveMonitor)) {
+      throw new BadRequestException('Invalid student monitor value');
+    }
     const request = await this.prisma.studentRequest.findUnique({
       where: { id: requestId },
       include: { siblings: true },
@@ -231,13 +243,14 @@ export class StudentRequestService {
           medicated: request.medicated,
 
           registrationPayment: request.registrationPayment,
-          registrationDate: request.registrationDate,
+          registrationDate: details.registrationDate ? new Date(details.registrationDate) : request.registrationDate,
 
-          indexNo: request.indexNo,
-          libraryNo: request.libraryNo,
-          house: request.house,
-          grade: request.grade,
-          studentActiveMonitor: request.studentActiveMonitor,
+          indexNo: details.indexNo ?? request.indexNo,
+          libraryNo: details.libraryNo ?? request.libraryNo,
+          house: details.house ?? request.house,
+          grade: details.grade || request.grade,
+          gender: details.gender,
+          studentActiveMonitor: details.studentActiveMonitor || request.studentActiveMonitor,
 
           agreeToTerms: request.agreeToTerms,
           studentImage: request.studentImage,
@@ -257,7 +270,7 @@ export class StudentRequestService {
 
       await tx.studentRequest.update({
         where: { id: requestId },
-        data: { status: StudentRequestStatus.ACCEPTED },
+        data: { status: StudentRequestStatus.ACCEPTED, gender: details.gender },
       });
 
       return createdStudent;
