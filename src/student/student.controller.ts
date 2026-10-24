@@ -74,6 +74,10 @@ export class StudentController {
     return this.studentService.findMyStudents(userId);
   }
 
+  @Get('dashboard')
+  @Roles('ADMIN')
+  dashboard() { return this.studentService.dashboard(); }
+
   @Get(':id')
   @Roles('ADMIN')
   async findOne(@Param('id', new ParseUUIDPipe()) id: string) {

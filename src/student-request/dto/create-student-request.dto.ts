@@ -6,6 +6,7 @@ import {
   IsArray,
   ValidateNested,
   IsEnum,
+  IsIn,
 } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
 
@@ -178,6 +179,10 @@ export class CreateStudentRequestDto {
   @IsOptional()
   @IsString()
   grade?: string;
+
+  @IsOptional()
+  @IsIn(['BOY', 'GIRL'])
+  gender?: 'BOY' | 'GIRL';
 
   @IsOptional()
   @IsEnum(StudentMonitor)

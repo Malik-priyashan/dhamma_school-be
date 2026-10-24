@@ -68,8 +68,8 @@ export class StudentRequestController {
 
   @Patch(':id/accept')
   @Roles('ADMIN')
-  async acceptRequest(@Param('id', new ParseUUIDPipe()) id: string) {
-    return this.studentService.acceptRequest(id);
+  async acceptRequest(@Param('id', new ParseUUIDPipe()) id: string, @Body() details: Parameters<StudentRequestService['acceptRequest']>[1]) {
+    return this.studentService.acceptRequest(id, details);
   }
 
   @Patch(':id/reject')
